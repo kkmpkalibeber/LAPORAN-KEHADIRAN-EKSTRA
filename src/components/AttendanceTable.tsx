@@ -89,9 +89,16 @@ export default function AttendanceTable({
   // Compute maximum meetings for each extracurricular activity based on max active attendance logs (H+S+I+A)
   const maxMeetingsMap = useMemo(() => calculateEkstraMaxMeetings(students, dates), [students, dates]);
 
-  // Unique lists for filters
-  const ekstras = Array.from(new Set(students.map(s => s.ekstra).filter(Boolean)));
-  const classes = Array.from(new Set(students.map(s => s.kelas).filter(Boolean)));
+  // Unique lists for filters (sorted ascending from smallest to largest / A-Z)
+  const ekstras = useMemo(() => {
+    return Array.from(new Set(students.map(s => s.ekstra).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b, 'id', { numeric: true, sensitivity: 'base' }));
+  }, [students]);
+
+  const classes = useMemo(() => {
+    return Array.from(new Set(students.map(s => s.kelas).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b, 'id', { numeric: true, sensitivity: 'base' }));
+  }, [students]);
 
   // Filter students based on search and selected options
   const filteredStudents = students.filter(student => {
@@ -116,19 +123,20 @@ export default function AttendanceTable({
   const sortedStudents = useMemo(() => {
     const list = [...filteredStudents];
     list.sort((a, b) => {
+      const opts: Intl.CollatorOptions = { numeric: true, sensitivity: 'base' };
       if (sortBy === 'EKSTRA_KELAS_NAMA') {
-        const compEkstra = (a.ekstra || '').localeCompare(b.ekstra || '', 'id');
+        const compEkstra = (a.ekstra || '').localeCompare(b.ekstra || '', 'id', opts);
         if (compEkstra !== 0) return compEkstra;
         
-        const compKelas = (a.kelas || '').localeCompare(b.kelas || '', 'id');
+        const compKelas = (a.kelas || '').localeCompare(b.kelas || '', 'id', opts);
         if (compKelas !== 0) return compKelas;
         
-        return (a.nama || '').localeCompare(b.nama || '', 'id');
+        return (a.nama || '').localeCompare(b.nama || '', 'id', opts);
       } else {
-        const compKelas = (a.kelas || '').localeCompare(b.kelas || '', 'id');
+        const compKelas = (a.kelas || '').localeCompare(b.kelas || '', 'id', opts);
         if (compKelas !== 0) return compKelas;
         
-        return (a.nama || '').localeCompare(b.nama || '', 'id');
+        return (a.nama || '').localeCompare(b.nama || '', 'id', opts);
       }
     });
     return list;
