@@ -1,0 +1,6 @@
+{
+  "name": "Kalkulator Kehadiran Ekstrakurikuler",
+  "description": "Aplikasi pembantu guru untuk menghitung otomatis jumlah H, S, I, A dan prosentase kehadiran siswa berdasarkan unggah berkas Excel atau copas tabel absensi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
