@@ -24,15 +24,30 @@ export default function App() {
     const savedDates = localStorage.getItem('eskul_attendance_dates');
     const savedFormula = localStorage.getItem('eskul_attendance_formula');
     const savedMinAttendance = localStorage.getItem('eskul_attendance_min_attendance');
+    const userCleared = localStorage.getItem('eskul_attendance_user_cleared');
 
     if (savedStudents && savedDates) {
       try {
-        setStudents(JSON.parse(savedStudents));
-        setDates(JSON.parse(savedDates));
+        const parsedS = JSON.parse(savedStudents);
+        const parsedD = JSON.parse(savedDates);
+        if (parsedS.length > 0) {
+          setStudents(parsedS);
+          setDates(parsedD);
+        } else if (userCleared !== 'true') {
+          setStudents(SAMPLE_STUDENTS);
+          setDates(SAMPLE_DATES);
+        }
       } catch (e) {
         console.error('Error loading saved attendance data:', e);
+        setStudents(SAMPLE_STUDENTS);
+        setDates(SAMPLE_DATES);
       }
+    } else if (userCleared !== 'true') {
+      // First visit default: load sample data so app opens fully populated!
+      setStudents(SAMPLE_STUDENTS);
+      setDates(SAMPLE_DATES);
     }
+
     if (savedFormula) {
       setFormula(savedFormula as CalculationFormula);
     }
@@ -64,11 +79,13 @@ export default function App() {
   }, [minAttendance]);
 
   const handleDataLoaded = (newStudents: StudentAttendance[], newDates: string[]) => {
+    localStorage.removeItem('eskul_attendance_user_cleared');
     setStudents(newStudents);
     setDates(newDates);
   };
 
   const handleLoadSample = () => {
+    localStorage.removeItem('eskul_attendance_user_cleared');
     setStudents(SAMPLE_STUDENTS);
     setDates(SAMPLE_DATES);
   };
@@ -82,6 +99,7 @@ export default function App() {
     setDates([]);
     localStorage.removeItem('eskul_attendance_students');
     localStorage.removeItem('eskul_attendance_dates');
+    localStorage.setItem('eskul_attendance_user_cleared', 'true');
     setShowResetModal(false);
   };
 
