@@ -153,9 +153,7 @@ export function parseAttendanceData(rawRows: (string | number | null | undefined
     // If name is empty, skip or generate a placeholder
     if (!rawNama) continue;
 
-    const noVal = noIndex !== -1 && row[noIndex] !== undefined && row[noIndex] !== null
-      ? parseInt(row[noIndex]!.toString().trim())
-      : noCounter++;
+    const noVal = noCounter++;
 
     const kelasVal = kelasIndex !== -1 && row[kelasIndex] !== undefined && row[kelasIndex] !== null
       ? row[kelasIndex]!.toString().trim()

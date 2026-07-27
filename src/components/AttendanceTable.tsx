@@ -146,13 +146,14 @@ export default function AttendanceTable({
 
   // Export to Excel File
   const handleExport = () => {
-    if (students.length === 0) return;
+    const exportList = sortedStudents.length > 0 ? sortedStudents : students;
+    if (exportList.length === 0) return;
 
-    const data = students.map(student => {
+    const data = exportList.map((student, idx) => {
       const maxMeetingsOfEkstra = maxMeetingsMap[student.ekstra] || 0;
       const summary = calculateStudentSummary(student, dates, formula, maxMeetingsOfEkstra);
       const row: any = {
-        'No': student.no,
+        'No': idx + 1,
         'Nama Siswa': student.nama,
         'Kelas': student.kelas,
         'Ekstrakurikuler': student.ekstra,
@@ -581,7 +582,9 @@ export default function AttendanceTable({
                   >
                     
                     {/* No */}
-                    <td className="px-3 py-3 text-center font-mono text-slate-400">{student.no}</td>
+                    <td className="px-3 py-3 text-center font-mono text-slate-400">
+                      {rowsPerPage === 'ALL' ? sIdx + 1 : (currentPage - 1) * rowsPerPage + sIdx + 1}
+                    </td>
 
                     {/* Nama (Static) */}
                     <td className={`px-4 py-3 font-semibold text-slate-800 dark:text-slate-100 sticky left-0 shadow-[1px_0_0_0_rgba(226,232,240,1)] dark:shadow-[1px_0_0_0_rgba(30,41,59,1)] z-10 transition-colors ${
