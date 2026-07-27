@@ -7,9 +7,10 @@ interface FormulaGuideProps {
   setFormula: (formula: CalculationFormula) => void;
   minAttendance: number;
   setMinAttendance: (val: number) => void;
+  isAdmin?: boolean;
 }
 
-export default function FormulaGuide({ formula, setFormula, minAttendance, setMinAttendance }: FormulaGuideProps) {
+export default function FormulaGuide({ formula, setFormula, minAttendance, setMinAttendance, isAdmin = false }: FormulaGuideProps) {
   const options = [
     {
       id: 'ALL_STATUS' as CalculationFormula,
@@ -32,15 +33,31 @@ export default function FormulaGuide({ formula, setFormula, minAttendance, setMi
   ];
 
   const handleDecrement = () => {
+    if (!isAdmin) {
+      alert('Perubahan batas minimal kehadiran hanya dapat diatur oleh Admin.');
+      return;
+    }
     if (minAttendance > 0) {
       setMinAttendance(Math.max(0, minAttendance - 5));
     }
   };
 
   const handleIncrement = () => {
+    if (!isAdmin) {
+      alert('Perubahan batas minimal kehadiran hanya dapat diatur oleh Admin.');
+      return;
+    }
     if (minAttendance < 100) {
       setMinAttendance(Math.min(100, minAttendance + 5));
     }
+  };
+
+  const handleSelectFormula = (id: CalculationFormula) => {
+    if (!isAdmin) {
+      alert('Pilihan rumus perhitungan kehadiran hanya dapat diubah oleh Admin.');
+      return;
+    }
+    setFormula(id);
   };
 
   return (
@@ -56,7 +73,7 @@ export default function FormulaGuide({ formula, setFormula, minAttendance, setMi
           return (
             <div 
               key={opt.id}
-              onClick={() => setFormula(opt.id)}
+              onClick={() => handleSelectFormula(opt.id)}
               className={`p-4 rounded-lg border transition-all cursor-pointer flex flex-col justify-between ${
                 isActive 
                   ? 'bg-indigo-500/10 border-indigo-500 dark:bg-indigo-950/20' 

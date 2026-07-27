@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   FileSpreadsheet, Clipboard, Calendar, HelpCircle, Users, 
   Sparkles, RefreshCw, Layers, GraduationCap, CheckCircle,
-  AlertCircle, Trash2, X
+  AlertCircle, Trash2, X, Lock, Key, ShieldCheck, Eye, LogOut
 } from 'lucide-react';
 import ExcelUploader from './components/ExcelUploader';
 import StatsDashboard from './components/StatsDashboard';
@@ -17,6 +17,15 @@ export default function App() {
   const [formula, setFormula] = useState<CalculationFormula>('ALL_STATUS');
   const [minAttendance, setMinAttendance] = useState<number>(75);
   const [showResetModal, setShowResetModal] = useState<boolean>(false);
+
+  // Admin & Viewer Mode State
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+    return localStorage.getItem('eskul_attendance_is_admin') === 'true';
+  });
+  const [showAdminModal, setShowAdminModal] = useState<boolean>(false);
+  const [adminPinInput, setAdminPinInput] = useState<string>('');
+  const [pinError, setPinError] = useState<string>('');
+  const [adminPin] = useState<string>('1234');
 
   // Load from LocalStorage on mount
   useEffect(() => {
@@ -103,6 +112,23 @@ export default function App() {
     setShowResetModal(false);
   };
 
+  const handleLoginAdmin = () => {
+    if (adminPinInput === adminPin) {
+      setIsAdmin(true);
+      localStorage.setItem('eskul_attendance_is_admin', 'true');
+      setShowAdminModal(false);
+      setAdminPinInput('');
+      setPinError('');
+    } else {
+      setPinError('PIN Admin salah. Coba PIN default: 1234');
+    }
+  };
+
+  const handleLogoutAdmin = () => {
+    setIsAdmin(false);
+    localStorage.setItem('eskul_attendance_is_admin', 'false');
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans transition-colors duration-200">
       
@@ -135,11 +161,49 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-start md:self-center">
-            {students.length > 0 && (
+          {/* Mode Switcher & Actions */}
+          <div className="flex flex-wrap items-center gap-2 self-start md:self-center">
+            {isAdmin ? (
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-900/50">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Mode Admin (Akses Penuh)</span>
+                </span>
+                <button
+                  onClick={handleLogoutAdmin}
+                  className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                  id="btn-logout-admin"
+                  title="Keluar ke Mode Pembaca (Read-Only)"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Keluar Admin</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-medium border border-slate-200 dark:border-slate-700">
+                  <Eye className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Mode Pembaca (Read-Only)</span>
+                </span>
+                <button
+                  onClick={() => {
+                    setShowAdminModal(true);
+                    setPinError('');
+                    setAdminPinInput('');
+                  }}
+                  className="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors cursor-pointer flex items-center gap-1.5"
+                  id="btn-open-admin-modal"
+                >
+                  <Key className="w-3.5 h-3.5" />
+                  <span>Masuk Admin</span>
+                </button>
+              </div>
+            )}
+
+            {isAdmin && students.length > 0 && (
               <button
                 onClick={handleClearAll}
-                className="px-4 py-2 text-xs font-semibold text-rose-600 hover:text-rose-500 bg-rose-50 hover:bg-rose-100/60 dark:bg-rose-950/10 dark:hover:bg-rose-950/20 border border-rose-100 dark:border-rose-950 rounded-lg transition-colors cursor-pointer"
+                className="px-3 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-500 bg-rose-50 hover:bg-rose-100/60 dark:bg-rose-950/10 dark:hover:bg-rose-950/20 border border-rose-100 dark:border-rose-950 rounded-lg transition-colors cursor-pointer"
                 id="btn-header-clear-all"
               >
                 Reset Semua Data
@@ -191,31 +255,63 @@ export default function App() {
               </div>
             </div>
 
-            {/* Uploader panel */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-1">
-                Langkah 1: Masukkan Data Absensi Siswa
-              </h3>
-              <ExcelUploader 
-                onDataLoaded={handleDataLoaded} 
-                onLoadSample={handleLoadSample} 
-              />
-            </div>
+            {/* Uploader panel - ONLY FOR ADMIN */}
+            {isAdmin ? (
+              <div className="space-y-4 animate-fade-in">
+                <h3 className="text-sm font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider px-1 flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Langkah 1: Masukkan Data Absensi Siswa (Mode Admin)</span>
+                </h3>
+                <ExcelUploader 
+                  onDataLoaded={handleDataLoaded} 
+                  onLoadSample={handleLoadSample} 
+                />
+              </div>
+            ) : (
+              <div className="bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-2xl p-6 text-center space-y-4">
+                <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 rounded-2xl flex items-center justify-center mx-auto">
+                  <Lock className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+                    Mode Pembaca (Read-Only)
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+                    Belum ada data absensi yang dimuat oleh Admin. Pengunjung umum hanya berkesempatan membaca & mengunduh data rekapitulasi setelah diunggah oleh Admin.
+                  </p>
+                </div>
+                <div className="pt-2">
+                  <button
+                    onClick={() => {
+                      setShowAdminModal(true);
+                      setPinError('');
+                      setAdminPinInput('');
+                    }}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-200 dark:shadow-none inline-flex items-center gap-2 cursor-pointer transition-colors"
+                  >
+                    <Key className="w-4 h-4" />
+                    <span>Masuk Mode Admin untuk Unggah File</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
-            {/* Pasting Instructions Guide */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5" id="how-to-guide">
-              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3 flex items-center gap-1.5">
-                <HelpCircle className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                <span>Panduan Copy-Paste dari Excel</span>
-              </h4>
-              <ol className="text-xs text-slate-500 dark:text-slate-400 space-y-2 list-decimal pl-4 leading-relaxed">
-                <li>Buka file absensi Anda di Microsoft Excel atau Google Sheets.</li>
-                <li>Sorot/blok tabel absensi mulai dari baris header (yang berisi kolom <strong>No, Nama, Kelas, Ekstra, dan Tanggal-tanggal pertemuan</strong>) hingga baris siswa terakhir.</li>
-                <li>Tekan tombol kombinasi <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border rounded font-mono text-[10px]">Ctrl + C</kbd> (Copy).</li>
-                <li>Kembali ke halaman ini, tempelkan (<kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border rounded font-mono text-[10px]">Ctrl + V</kbd>) ke dalam kolom "Copas Tabel" di kanan atas.</li>
-                <li>Klik tombol <strong>"Proses Data Copas"</strong>. Sistem akan langsung memformat data Anda!</li>
-              </ol>
-            </div>
+            {/* Pasting Instructions Guide - ONLY FOR ADMIN */}
+            {isAdmin && (
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5" id="how-to-guide">
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3 flex items-center gap-1.5">
+                  <HelpCircle className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>Panduan Copy-Paste dari Excel</span>
+                </h4>
+                <ol className="text-xs text-slate-500 dark:text-slate-400 space-y-2 list-decimal pl-4 leading-relaxed">
+                  <li>Buka file absensi Anda di Microsoft Excel atau Google Sheets.</li>
+                  <li>Sorot/blok tabel absensi mulai dari baris header (yang berisi kolom <strong>No, Nama, Kelas, Ekstra, dan Tanggal-tanggal pertemuan</strong>) hingga baris siswa terakhir.</li>
+                  <li>Tekan tombol kombinasi <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border rounded font-mono text-[10px]">Ctrl + C</kbd> (Copy).</li>
+                  <li>Kembali ke halaman ini, tempelkan (<kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border rounded font-mono text-[10px]">Ctrl + V</kbd>) ke dalam kolom "Copas Tabel" di kanan atas.</li>
+                  <li>Klik tombol <strong>"Proses Data Copas"</strong>. Sistem akan langsung memformat data Anda!</li>
+                </ol>
+              </div>
+            )}
 
           </div>
         ) : (
@@ -225,15 +321,21 @@ export default function App() {
             {/* Quick Helper Banner */}
             <div className="p-3 bg-blue-500/5 dark:bg-blue-950/20 border border-blue-500/10 rounded-xl text-xs text-blue-600 dark:text-blue-400 flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">
-                <span className="flex h-2 w-2 rounded-full bg-blue-500" />
-                <span><strong>Tips:</strong> Anda bisa mengeklik pilihan status <strong>(H/S/I/A/-)</strong> di dalam sel tabel kapan saja untuk merubah absensi secara langsung!</span>
+                <span className="flex h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+                {isAdmin ? (
+                  <span><strong>Mode Admin:</strong> Anda memiliki wewenang penuh untuk mengubah status kehadiran, mengatur rumus, dan mengunggah berkas baru.</span>
+                ) : (
+                  <span><strong>Mode Pembaca:</strong> Anda dapat melihat data absensi, mencari siswa/kelas/ekstra, menyaring data, dan mengunduh laporan PDF/Excel.</span>
+                )}
               </div>
-              <button 
-                onClick={handleLoadSample}
-                className="text-[10px] uppercase font-bold text-blue-700 dark:text-blue-300 hover:underline cursor-pointer"
-              >
-                Ganti ke Data Contoh
-              </button>
+              {isAdmin && (
+                <button 
+                  onClick={handleLoadSample}
+                  className="text-[10px] uppercase font-bold text-blue-700 dark:text-blue-300 hover:underline cursor-pointer shrink-0"
+                >
+                  Ganti ke Data Contoh
+                </button>
+              )}
             </div>
 
             {/* Calculations config */}
@@ -242,6 +344,7 @@ export default function App() {
               setFormula={setFormula} 
               minAttendance={minAttendance}
               setMinAttendance={setMinAttendance}
+              isAdmin={isAdmin}
             />
 
             {/* Statistics Widgets */}
@@ -270,9 +373,75 @@ export default function App() {
                 setDates={setDates}
                 minAttendance={minAttendance}
                 onResetAll={handleClearAll}
+                isAdmin={isAdmin}
               />
             </div>
 
+          </div>
+        )}
+
+        {/* Modal Admin Login */}
+        {showAdminModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in" id="admin-login-modal">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 relative">
+              <button
+                onClick={() => setShowAdminModal(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-xl">
+                  <Key className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Masuk Mode Admin</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Akses fitur unggah & pengeditan data</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    PIN Admin:
+                  </label>
+                  <input
+                    type="password"
+                    value={adminPinInput}
+                    onChange={(e) => setAdminPinInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleLoginAdmin();
+                    }}
+                    placeholder="Masukkan PIN (Default: 1234)"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-100 font-mono tracking-widest"
+                    autoFocus
+                  />
+                  {pinError && (
+                    <p className="text-[11px] text-rose-500 mt-1.5 font-medium">{pinError}</p>
+                  )}
+                </div>
+
+                <div className="p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
+                  <span>PIN Default Admin: <strong className="text-indigo-600 dark:text-indigo-400 font-mono">1234</strong></span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  onClick={() => setShowAdminModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleLoginAdmin}
+                  className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors cursor-pointer shadow-md shadow-indigo-200 dark:shadow-none"
+                >
+                  Masuk Admin
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

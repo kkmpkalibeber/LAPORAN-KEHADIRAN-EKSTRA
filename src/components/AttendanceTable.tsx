@@ -17,6 +17,7 @@ interface AttendanceTableProps {
   setDates: React.Dispatch<React.SetStateAction<string[]>>;
   minAttendance: number;
   onResetAll?: () => void;
+  isAdmin?: boolean;
 }
 
 export default function AttendanceTable({ 
@@ -26,7 +27,8 @@ export default function AttendanceTable({
   setStudents, 
   setDates,
   minAttendance,
-  onResetAll
+  onResetAll,
+  isAdmin = false
 }: AttendanceTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEkstra, setSelectedEkstra] = useState('ALL');
@@ -469,24 +471,28 @@ export default function AttendanceTable({
 
           {/* Actions - Export and Import */}
           <div className="flex flex-wrap items-center gap-2 ml-auto">
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              accept=".xlsx,.xls,.csv"
-              onChange={handleFileChange}
-              id="table-toolbar-file-input"
-            />
-            
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="px-3 py-1.5 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer"
-              id="btn-upload-excel-toolbar"
-              title="Unggah file Excel baru untuk mengganti data saat ini"
-            >
-              <Upload className="w-3.5 h-3.5 text-indigo-500" />
-              <span>Unggah Excel</span>
-            </button>
+            {isAdmin && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleFileChange}
+                  id="table-toolbar-file-input"
+                />
+                
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-3 py-1.5 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                  id="btn-upload-excel-toolbar"
+                  title="Unggah file Excel baru untuk mengganti data saat ini"
+                >
+                  <Upload className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Unggah Excel</span>
+                </button>
+              </>
+            )}
 
             <button
               onClick={handleExport}
@@ -507,15 +513,17 @@ export default function AttendanceTable({
               <span>Unduh PDF</span>
             </button>
 
-            <button
-              onClick={handleReset}
-              className="px-3 py-1.5 bg-slate-100 hover:bg-rose-50 dark:bg-slate-800 dark:hover:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-slate-200 dark:border-slate-800 hover:border-rose-200 dark:hover:border-rose-900/50 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
-              id="btn-reset-data-table"
-              title="Hapus seluruh data absensi dan mulai baru"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Reset Data</span>
-            </button>
+            {isAdmin && (
+              <button
+                onClick={handleReset}
+                className="px-3 py-1.5 bg-slate-100 hover:bg-rose-50 dark:bg-slate-800 dark:hover:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-slate-200 dark:border-slate-800 hover:border-rose-200 dark:hover:border-rose-900/50 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                id="btn-reset-data-table"
+                title="Hapus seluruh data absensi dan mulai baru"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Reset Data</span>
+              </button>
+            )}
           </div>
 
         </div>
