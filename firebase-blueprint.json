@@ -1,0 +1,18 @@
+{
+  "entities": {
+    "attendance_data": {
+      "title": "Attendance Data",
+      "description": "Stores extracurricular attendance data, dates, and configuration for real-time persistence across all users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "students": { "type": "array" },
+        "dates": { "type": "array" },
+        "formula": { "type": "string" },
+        "minAttendance": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["students", "dates"]
+    }
+  }
+}

@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 import { 
   FileSpreadsheet, Clipboard, Calendar, HelpCircle, Users, 
   Sparkles, RefreshCw, Layers, GraduationCap, CheckCircle,
-  AlertCircle, Trash2, X, Lock, Key, ShieldCheck, Eye, LogOut
+  AlertCircle, Trash2, X, Lock, Key, ShieldCheck, Eye, LogOut,
+  CloudCheck, Cloud
 } from 'lucide-react';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { db, ATTENDANCE_DOC_ID } from './lib/firebase';
 import ExcelUploader from './components/ExcelUploader';
 import StatsDashboard from './components/StatsDashboard';
 import AttendanceTable from './components/AttendanceTable';
@@ -17,6 +20,8 @@ export default function App() {
   const [formula, setFormula] = useState<CalculationFormula>('ALL_STATUS');
   const [minAttendance, setMinAttendance] = useState<number>(75);
   const [showResetModal, setShowResetModal] = useState<boolean>(false);
+  const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
   // Admin & Viewer Mode State
   const [isAdmin, setIsAdmin] = useState<boolean>(() => {
@@ -27,48 +32,51 @@ export default function App() {
   const [pinError, setPinError] = useState<string>('');
   const [adminPin] = useState<string>('1234');
 
-  // Load from LocalStorage on mount
+  // Real-time Firebase Firestore Sync Listener
   useEffect(() => {
-    const savedStudents = localStorage.getItem('eskul_attendance_students');
-    const savedDates = localStorage.getItem('eskul_attendance_dates');
-    const savedFormula = localStorage.getItem('eskul_attendance_formula');
-    const savedMinAttendance = localStorage.getItem('eskul_attendance_min_attendance');
-    const userCleared = localStorage.getItem('eskul_attendance_user_cleared');
-
-    if (savedStudents && savedDates) {
-      try {
-        const parsedS = JSON.parse(savedStudents);
-        const parsedD = JSON.parse(savedDates);
-        if (parsedS.length > 0) {
-          setStudents(parsedS);
-          setDates(parsedD);
-        } else if (userCleared !== 'true') {
-          setStudents(SAMPLE_STUDENTS);
-          setDates(SAMPLE_DATES);
+    const docRef = doc(db, 'attendance_data', ATTENDANCE_DOC_ID);
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.students && Array.isArray(data.students)) {
+          setStudents(data.students);
         }
-      } catch (e) {
-        console.error('Error loading saved attendance data:', e);
-        setStudents(SAMPLE_STUDENTS);
-        setDates(SAMPLE_DATES);
+        if (data.dates && Array.isArray(data.dates)) {
+          setDates(data.dates);
+        }
+        if (data.formula) {
+          setFormula(data.formula as CalculationFormula);
+        }
+        if (typeof data.minAttendance === 'number') {
+          setMinAttendance(data.minAttendance);
+        }
+        setIsCloudSynced(true);
+      } else {
+        // First visit or initial cloud document creation: Seed Firestore with initial sample data
+        const initStudents = SAMPLE_STUDENTS;
+        const initDates = SAMPLE_DATES;
+        setDoc(docRef, {
+          students: initStudents,
+          dates: initDates,
+          formula: 'ALL_STATUS',
+          minAttendance: 75,
+          userCleared: false,
+          updatedAt: new Date().toISOString()
+        }).then(() => {
+          setIsCloudSynced(true);
+        }).catch(err => {
+          console.error('Error initializing Firestore:', err);
+        });
       }
-    } else if (userCleared !== 'true') {
-      // First visit default: load sample data so app opens fully populated!
-      setStudents(SAMPLE_STUDENTS);
-      setDates(SAMPLE_DATES);
-    }
+    }, (error) => {
+      console.error('Firestore snapshot listener error:', error);
+      setIsCloudSynced(false);
+    });
 
-    if (savedFormula) {
-      setFormula(savedFormula as CalculationFormula);
-    }
-    if (savedMinAttendance) {
-      const parsedValue = parseInt(savedMinAttendance, 10);
-      if (!isNaN(parsedValue)) {
-        setMinAttendance(parsedValue);
-      }
-    }
+    return () => unsubscribe();
   }, []);
 
-  // Save to LocalStorage on state change
+  // Save to LocalStorage as offline fallback
   useEffect(() => {
     if (students.length > 0 && dates.length > 0) {
       localStorage.setItem('eskul_attendance_students', JSON.stringify(students));
@@ -87,16 +95,45 @@ export default function App() {
     localStorage.setItem('eskul_attendance_min_attendance', minAttendance.toString());
   }, [minAttendance]);
 
+  // Helper to push updates directly to Firebase Cloud Firestore
+  const updateFirestoreData = async (
+    newStudents: StudentAttendance[],
+    newDates: string[],
+    newFormula: CalculationFormula,
+    newMinAttendance: number,
+    userCleared = false
+  ) => {
+    try {
+      setIsSyncing(true);
+      const docRef = doc(db, 'attendance_data', ATTENDANCE_DOC_ID);
+      await setDoc(docRef, {
+        students: newStudents,
+        dates: newDates,
+        formula: newFormula,
+        minAttendance: newMinAttendance,
+        userCleared,
+        updatedAt: new Date().toISOString()
+      });
+      setIsCloudSynced(true);
+    } catch (err) {
+      console.error('Failed to update Cloud Firestore:', err);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const handleDataLoaded = (newStudents: StudentAttendance[], newDates: string[]) => {
     localStorage.removeItem('eskul_attendance_user_cleared');
     setStudents(newStudents);
     setDates(newDates);
+    updateFirestoreData(newStudents, newDates, formula, minAttendance, false);
   };
 
   const handleLoadSample = () => {
     localStorage.removeItem('eskul_attendance_user_cleared');
     setStudents(SAMPLE_STUDENTS);
     setDates(SAMPLE_DATES);
+    updateFirestoreData(SAMPLE_STUDENTS, SAMPLE_DATES, formula, minAttendance, false);
   };
 
   const handleClearAll = () => {
@@ -110,6 +147,17 @@ export default function App() {
     localStorage.removeItem('eskul_attendance_dates');
     localStorage.setItem('eskul_attendance_user_cleared', 'true');
     setShowResetModal(false);
+    updateFirestoreData([], [], formula, minAttendance, true);
+  };
+
+  const handleFormulaChange = (newFormula: CalculationFormula) => {
+    setFormula(newFormula);
+    updateFirestoreData(students, dates, newFormula, minAttendance, false);
+  };
+
+  const handleMinAttendanceChange = (newMin: number) => {
+    setMinAttendance(newMin);
+    updateFirestoreData(students, dates, formula, newMin, false);
   };
 
   const handleLoginAdmin = () => {
@@ -145,18 +193,21 @@ export default function App() {
               <GraduationCap className="w-8 h-8" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 text-[10px] font-bold rounded-full uppercase tracking-wider border border-indigo-100 dark:border-indigo-900/30">
                   SIAKAD Ekstra v2.4
                 </span>
                 <span className="text-slate-300 dark:text-slate-800">•</span>
-                <span className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">100% Client-Side</span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold rounded-full border border-emerald-200/60 dark:border-emerald-900/40">
+                  <CloudCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <span>Firebase Firestore Active</span>
+                </span>
               </div>
-              <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-50 font-sans tracking-tight">
+              <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-50 font-sans tracking-tight mt-1">
                 Kalkulator Kehadiran Ekstrakurikuler
               </h1>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Hitung rekap H, S, I, A & prosentase otomatis secara instan.
+                Hitung rekap H, S, I, A & prosentase otomatis. Data tersimpan permanen di Cloud Database!
               </p>
             </div>
           </div>
@@ -341,9 +392,9 @@ export default function App() {
             {/* Calculations config */}
             <FormulaGuide 
               formula={formula} 
-              setFormula={setFormula} 
+              setFormula={handleFormulaChange} 
               minAttendance={minAttendance}
-              setMinAttendance={setMinAttendance}
+              setMinAttendance={handleMinAttendanceChange}
               isAdmin={isAdmin}
             />
 
@@ -369,8 +420,16 @@ export default function App() {
                 students={students} 
                 dates={dates} 
                 formula={formula}
-                setStudents={setStudents}
-                setDates={setDates}
+                setStudents={(action) => {
+                  const nextStudents = typeof action === 'function' ? action(students) : action;
+                  setStudents(nextStudents);
+                  updateFirestoreData(nextStudents, dates, formula, minAttendance, false);
+                }}
+                setDates={(action) => {
+                  const nextDates = typeof action === 'function' ? action(dates) : action;
+                  setDates(nextDates);
+                  updateFirestoreData(students, nextDates, formula, minAttendance, false);
+                }}
                 minAttendance={minAttendance}
                 onResetAll={handleClearAll}
                 isAdmin={isAdmin}
