@@ -33,6 +33,7 @@ export default function AttendanceTable({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEkstra, setSelectedEkstra] = useState('ALL');
   const [selectedKelas, setSelectedKelas] = useState('ALL');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
   const [showOnlyLowAttendance, setShowOnlyLowAttendance] = useState(false);
 
   // Sorting and Pagination states
@@ -84,7 +85,7 @@ export default function AttendanceTable({
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedEkstra, selectedKelas, showOnlyLowAttendance, sortBy, rowsPerPage]);
+  }, [searchTerm, selectedEkstra, selectedKelas, selectedStatusFilter, showOnlyLowAttendance, sortBy, rowsPerPage]);
 
   // Compute maximum meetings for each extracurricular activity based on max active attendance logs (H+S+I+A)
   const maxMeetingsMap = useMemo(() => calculateEkstraMaxMeetings(students, dates), [students, dates]);
@@ -109,14 +110,28 @@ export default function AttendanceTable({
     
     const matchesEkstra = selectedEkstra === 'ALL' || student.ekstra === selectedEkstra;
     const matchesKelas = selectedKelas === 'ALL' || student.kelas === selectedKelas;
+
+    const maxMeetingsOfEkstra = maxMeetingsMap[student.ekstra] || 0;
+    const summary = calculateStudentSummary(student, dates, formula, maxMeetingsOfEkstra);
+
+    let matchesStatusFilter = true;
+    if (selectedStatusFilter === 'HAS_A') {
+      matchesStatusFilter = summary.aCount > 0;
+    } else if (selectedStatusFilter === 'HAS_S') {
+      matchesStatusFilter = summary.sCount > 0;
+    } else if (selectedStatusFilter === 'HAS_I') {
+      matchesStatusFilter = summary.iCount > 0;
+    } else if (selectedStatusFilter === 'HAS_S_I_A') {
+      matchesStatusFilter = (summary.sCount + summary.iCount + summary.aCount) > 0;
+    } else if (selectedStatusFilter === 'PERFECT_H') {
+      matchesStatusFilter = (summary.sCount === 0 && summary.iCount === 0 && summary.aCount === 0 && summary.hCount > 0);
+    }
     
     if (showOnlyLowAttendance) {
-      const maxMeetingsOfEkstra = maxMeetingsMap[student.ekstra] || 0;
-      const summary = calculateStudentSummary(student, dates, formula, maxMeetingsOfEkstra);
-      return matchesSearch && matchesEkstra && matchesKelas && summary.percentage < minAttendance;
+      return matchesSearch && matchesEkstra && matchesKelas && matchesStatusFilter && summary.percentage < minAttendance;
     }
 
-    return matchesSearch && matchesEkstra && matchesKelas;
+    return matchesSearch && matchesEkstra && matchesKelas && matchesStatusFilter;
   });
 
   // Sort students based on selected option
@@ -441,6 +456,24 @@ export default function AttendanceTable({
             >
               <option value="ALL">Semua Kelas</option>
               {classes.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          {/* Kategori Status Presensi Filter (H, S, I, A) */}
+          <div className="flex items-center gap-1.5" id="filter-status-wrapper">
+            <Filter className="w-3.5 h-3.5 text-slate-400" />
+            <select
+              value={selectedStatusFilter}
+              onChange={(e) => setSelectedStatusFilter(e.target.value)}
+              className="text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-1.5 focus:outline-none text-slate-700 dark:text-slate-300 font-medium"
+              id="filter-status-select"
+            >
+              <option value="ALL">Kategori Presensi: Semua</option>
+              <option value="HAS_A">Pernah Alpa (A &gt; 0)</option>
+              <option value="HAS_S">Pernah Sakit (S &gt; 0)</option>
+              <option value="HAS_I">Pernah Izin (I &gt; 0)</option>
+              <option value="HAS_S_I_A">Ada S / I / A (Tidak Hadir)</option>
+              <option value="PERFECT_H">Hadir Penuh 100% (Tanpa S/I/A)</option>
             </select>
           </div>
 
